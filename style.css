@@ -25,6 +25,10 @@ body {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
+    touch-action: none;
+    /* Prevent default touch actions like pull-to-refresh */
+    overscroll-behavior: none;
+    /* Prevent bounce effects */
 }
 
 .container {
@@ -58,7 +62,6 @@ body {
     font-weight: 700;
     margin: 0;
     line-height: .9;
-    /* Slightly increased line height */
     text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 }
 
@@ -126,7 +129,13 @@ body {
     color: #e2e8f0;
 }
 
-.restart-button {
+.buttons-wrapper {
+    display: flex;
+    gap: 10px;
+}
+
+.restart-button,
+.undo-button {
     background: #3b82f6;
     /* Blue button */
     border-radius: 3px;
@@ -147,9 +156,27 @@ body {
     box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
 }
 
+.undo-button {
+    background: #8b5cf6;
+    /* Purple for undo */
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+}
+
 .restart-button:hover {
     background-color: #2563eb;
     box-shadow: 0 0 15px rgba(59, 130, 246, 0.8);
+}
+
+.undo-button:hover {
+    background-color: #7c3aed;
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.8);
+}
+
+.undo-button:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
+    box-shadow: none;
+    opacity: 0.7;
 }
 
 .game-container {
@@ -278,47 +305,40 @@ body {
 }
 
 /* New Color Scheme: Cool Blues -> Purples -> Pinks -> Hot Pinks */
-/* Text color needs to vary based on contrast */
 
 .tile-2 {
     background: #c7d2fe;
     color: #1e293b;
 }
 
-/* Indigo 200 */
 .tile-4 {
     background: #a5b4fc;
     color: #1e293b;
 }
 
-/* Indigo 300 */
 .tile-8 {
     background: #818cf8;
     color: #ffffff;
 }
 
-/* Indigo 400 */
 .tile-16 {
     background: #6366f1;
     color: #ffffff;
     box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
 }
 
-/* Indigo 500 */
 .tile-32 {
     background: #4f46e5;
     color: #ffffff;
     box-shadow: 0 0 10px rgba(79, 70, 229, 0.5);
 }
 
-/* Indigo 600 */
 .tile-64 {
     background: #4338ca;
     color: #ffffff;
     box-shadow: 0 0 15px rgba(67, 56, 202, 0.6);
 }
 
-/* Indigo 700 */
 .tile-128 {
     background: #7c3aed;
     color: #ffffff;
@@ -326,7 +346,6 @@ body {
     box-shadow: 0 0 15px rgba(124, 58, 237, 0.6);
 }
 
-/* Violet 600 */
 .tile-256 {
     background: #9333ea;
     color: #ffffff;
@@ -334,7 +353,6 @@ body {
     box-shadow: 0 0 20px rgba(147, 51, 234, 0.7);
 }
 
-/* Purple 600 */
 .tile-512 {
     background: #c026d3;
     color: #ffffff;
@@ -342,7 +360,6 @@ body {
     box-shadow: 0 0 20px rgba(192, 38, 211, 0.7);
 }
 
-/* Fuchsia 600 */
 .tile-1024 {
     background: #db2777;
     color: #ffffff;
@@ -350,7 +367,6 @@ body {
     box-shadow: 0 0 25px rgba(219, 39, 119, 0.8);
 }
 
-/* Pink 600 */
 .tile-2048 {
     background: #e11d48;
     color: #ffffff;
@@ -358,7 +374,6 @@ body {
     box-shadow: 0 0 30px rgba(225, 29, 72, 0.9);
 }
 
-/* Rose 600 */
 .tile-super {
     background: #0f172a;
     color: #ffffff;
