@@ -135,7 +135,8 @@ body {
 }
 
 .restart-button,
-.undo-button {
+.undo-button,
+.merge-button {
     background: #3b82f6;
     /* Blue button */
     border-radius: 3px;
@@ -162,6 +163,12 @@ body {
     box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
 }
 
+.merge-button {
+    background: #10b981;
+    /* Emerald/Green for merge */
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
 .restart-button:hover {
     background-color: #2563eb;
     box-shadow: 0 0 15px rgba(59, 130, 246, 0.8);
@@ -172,7 +179,13 @@ body {
     box-shadow: 0 0 15px rgba(139, 92, 246, 0.8);
 }
 
-.undo-button:disabled {
+.merge-button:hover {
+    background-color: #059669;
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.8);
+}
+
+.undo-button:disabled,
+.merge-button:disabled {
     background: #94a3b8;
     cursor: not-allowed;
     box-shadow: none;
