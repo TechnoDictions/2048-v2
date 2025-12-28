@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const messageContainer = document.querySelector('.game-message');
     const messageText = messageContainer.querySelector('p');
     const restartButton = document.querySelector('.restart-button');
+    const undoButton = document.querySelector('.undo-button');
     const retryButton = document.querySelector('.retry-button');
     const keepPlayingButton = document.querySelector('.keep-playing-button');
 
@@ -22,12 +23,22 @@ document.addEventListener('DOMContentLoaded', () => {
     let touchStartX = 0;
     let touchStartY = 0;
 
+    // Undo State
+    let gameHistory = [];
+    const maxUndos = 3;
+    let undoCount = maxUndos;
+
     // Initialize Game
     function initGame() {
         grid = Array(gridSize).fill().map(() => Array(gridSize).fill(0));
         score = 0;
         won = false;
         keepPlaying = false;
+
+        // Reset Undo
+        undoCount = maxUndos;
+        gameHistory = [];
+        updateUndoButton();
 
         clearTiles();
         updateScore();
@@ -37,6 +48,48 @@ document.addEventListener('DOMContentLoaded', () => {
         addRandomTile();
         addRandomTile();
         updateView();
+    }
+
+    // Save state for Undo
+    function saveState() {
+        if (undoCount > 0) {
+            const gridCopy = grid.map(row => [...row]);
+            gameHistory.push({
+                grid: gridCopy,
+                score: score,
+                won: won,
+                keepPlaying: keepPlaying
+            });
+            // We don't limit history stack size here, but we could if we wanted unlimited undos. 
+            // Since we have a count limit, we just need to ensure we pop correctly.
+        }
+    }
+
+    function undo() {
+        if (undoCount > 0 && gameHistory.length > 0) {
+            const previousState = gameHistory.pop();
+            grid = previousState.grid;
+            score = previousState.score;
+            won = previousState.won;
+            keepPlaying = previousState.keepPlaying;
+
+            undoCount--;
+            updateUndoButton();
+            updateView();
+            updateScore();
+            hideMessage(); // Hide game over if we undid the losing move
+        }
+        // If count becomes 0 or history empty, update button
+        updateUndoButton();
+    }
+
+    function updateUndoButton() {
+        undoButton.textContent = `Undo (${undoCount})`;
+        if (undoCount === 0 || gameHistory.length === 0) {
+            undoButton.disabled = true;
+        } else {
+            undoButton.disabled = false;
+        }
     }
 
     function clearTiles() {
@@ -57,39 +110,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const randomCell = availableCells[Math.floor(Math.random() * availableCells.length)];
             const value = Math.random() < 0.9 ? 2 : 4;
             grid[randomCell.r][randomCell.c] = value;
-
-            // We'll update the view separately, but we could add animation class here
-            // Note: The main loop calls updateView which rebuilds DOM. 
-            // Better approach for animation: differentiate new tiles.
-            // For simplicity in this version, updateView handles everything.
         }
     }
 
     function updateView() {
-        clearTiles(); // Naive approach: clear and redraw. For smoother animations, we'd need to track tile objects.
-        // Let's implement a better view update that supports animations
-        // Actually, for a simple implementation, let's just redraw. 
-        // We will make it slightly smarter: we need to position them absolutely.
+        clearTiles();
 
-        const cellGap = 15;
-        const cellSize = 106.25;
-
-        // Check window width for responsive sizing
-        // Simplified: using CSS variable logic or just standard calculations
-        // We rely on CSS classes for positions if possible, or inline styles.
-        // Let's use inline styles for generic logic
-
-        // We need to know the exact layout size. 
-        // But wait, our CSS defines sizes in pixels (500px container). 
-        // We can just rely on percentages or calculated pixels.
-
-        // Let's find the current size of a grid cell to be responsive
         const tempCell = document.querySelector('.grid-cell');
         const computedStyle = window.getComputedStyle(tempCell);
         const cellW = parseFloat(computedStyle.width);
         const cellH = parseFloat(computedStyle.height);
 
-        // Grid gap
         const gridCompStyle = window.getComputedStyle(gridContainer);
         const gap = parseFloat(gridCompStyle.gap) || 15;
 
@@ -102,19 +133,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     tile.classList.add(`tile-${value > 2048 ? 'super' : value}`);
                     tile.textContent = value;
 
-                    // Position
-                    // x = c * (width + gap)
-                    // y = r * (height + gap)
-
                     const x = c * (cellW + gap);
                     const y = r * (cellH + gap);
 
                     tile.style.transform = `translate(${x}px, ${y}px)`;
-
-                    // Add animation classes if needed (new, merged) 
-                    // This is hard to track without a diffing algorithm or object tracking.
-                    // For this MVP, we will skip complex move animations and just snap.
-                    // But we can add 'new' animation if we track it.
 
                     tileContainer.appendChild(tile);
                 }
@@ -161,7 +183,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Game Logic
     function slide(row) {
-        // [2, 0, 2, 0] -> [2, 2] -> [4] -> [4, 0, 0, 0]
         let arr = row.filter(val => val);
         let missing = gridSize - arr.length;
         let zeros = Array(missing).fill(0);
@@ -173,7 +194,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (row[i] !== 0 && row[i] === row[i + 1]) {
                 row[i] *= 2;
                 row[i + 1] = 0;
-                // Score is no longer updated here
 
                 if (row[i] === 2048 && !won && !keepPlaying) {
                     won = true;
@@ -186,44 +206,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function moveRight() {
         let moved = false;
+        let newGrid = JSON.parse(JSON.stringify(grid)); // Deep copy to detect change
+
         for (let r = 0; r < gridSize; r++) {
-            let row = grid[r];
-            // reverse for right
+            let row = newGrid[r];
             let reversed = row.slice().reverse();
             let slid = slide(reversed);
             let combined = combine(slid);
-            let slidAgain = slide(combined); // slide again after merge
-            let newRow = slidAgain.reverse();
+            let slidAgain = slide(combined);
+            newGrid[r] = slidAgain.reverse();
+        }
 
-            if (JSON.stringify(grid[r]) !== JSON.stringify(newRow)) {
-                moved = true;
-                grid[r] = newRow;
-            }
+        if (JSON.stringify(grid) !== JSON.stringify(newGrid)) {
+            moved = true;
+            saveState(); // Save BEFORE updating grid
+            grid = newGrid;
         }
         return moved;
     }
 
     function moveLeft() {
         let moved = false;
+        let newGrid = JSON.parse(JSON.stringify(grid));
+
         for (let r = 0; r < gridSize; r++) {
-            let row = grid[r];
+            let row = newGrid[r];
             let slid = slide(row);
             let combined = combine(slid);
             let slidAgain = slide(combined);
-            let newRow = slidAgain;
+            newGrid[r] = slidAgain;
+        }
 
-            if (JSON.stringify(grid[r]) !== JSON.stringify(newRow)) {
-                moved = true;
-                grid[r] = newRow;
-            }
+        if (JSON.stringify(grid) !== JSON.stringify(newGrid)) {
+            moved = true;
+            saveState();
+            grid = newGrid;
         }
         return moved;
     }
 
     function moveDown() {
         let moved = false;
+        let newGrid = JSON.parse(JSON.stringify(grid));
+
         for (let c = 0; c < gridSize; c++) {
-            let col = [grid[0][c], grid[1][c], grid[2][c], grid[3][c]];
+            let col = [newGrid[0][c], newGrid[1][c], newGrid[2][c], newGrid[3][c]];
             let reversed = col.reverse();
             let slid = slide(reversed);
             let combined = combine(slid);
@@ -231,30 +258,38 @@ document.addEventListener('DOMContentLoaded', () => {
             let newCol = slidAgain.reverse();
 
             for (let r = 0; r < gridSize; r++) {
-                if (grid[r][c] !== newCol[r]) {
-                    moved = true;
-                    grid[r][c] = newCol[r];
-                }
+                newGrid[r][c] = newCol[r];
             }
+        }
+
+        if (JSON.stringify(grid) !== JSON.stringify(newGrid)) {
+            moved = true;
+            saveState();
+            grid = newGrid;
         }
         return moved;
     }
 
     function moveUp() {
         let moved = false;
+        let newGrid = JSON.parse(JSON.stringify(grid));
+
         for (let c = 0; c < gridSize; c++) {
-            let col = [grid[0][c], grid[1][c], grid[2][c], grid[3][c]];
+            let col = [newGrid[0][c], newGrid[1][c], newGrid[2][c], newGrid[3][c]];
             let slid = slide(col);
             let combined = combine(slid);
             let slidAgain = slide(combined);
             let newCol = slidAgain;
 
             for (let r = 0; r < gridSize; r++) {
-                if (grid[r][c] !== newCol[r]) {
-                    moved = true;
-                    grid[r][c] = newCol[r];
-                }
+                newGrid[r][c] = newCol[r];
             }
+        }
+
+        if (JSON.stringify(grid) !== JSON.stringify(newGrid)) {
+            moved = true;
+            saveState();
+            grid = newGrid;
         }
         return moved;
     }
@@ -285,6 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
             addRandomTile();
             updateView();
             updateScore();
+            updateUndoButton(); // Enable button if it was disabled
             if (isGameOver()) {
                 setTimeout(() => showMessage(false), 500);
             }
@@ -300,16 +336,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     restartButton.addEventListener('click', initGame);
+    undoButton.addEventListener('click', undo);
     retryButton.addEventListener('click', initGame);
     keepPlayingButton.addEventListener('click', () => {
         keepPlaying = true;
         hideMessage();
     });
 
-    // Touch support (basic)
+    // Touch support
     document.addEventListener('touchstart', (e) => {
         touchStartX = e.touches[0].clientX;
         touchStartY = e.touches[0].clientY;
+    }, { passive: false });
+
+    document.addEventListener('touchmove', (e) => {
+        // IMPORTANT: Prevent default global scrolling/refresh
+        e.preventDefault();
     }, { passive: false });
 
     document.addEventListener('touchend', (e) => {
@@ -341,7 +383,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Handle window resize for positioning
     window.addEventListener('resize', () => {
-        // Debounce or just update
         updateView();
     });
 
