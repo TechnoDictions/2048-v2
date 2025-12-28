@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const messageText = messageContainer.querySelector('p');
     const restartButton = document.querySelector('.restart-button');
     const undoButton = document.querySelector('.undo-button');
+    const mergeButton = document.querySelector('.merge-button');
     const retryButton = document.querySelector('.retry-button');
     const keepPlayingButton = document.querySelector('.keep-playing-button');
 
@@ -25,8 +26,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Undo State
     let gameHistory = [];
-    const maxUndos = 3;
+    const maxUndos = 9;
     let undoCount = maxUndos;
+
+    // Merge Powerup State
+    const maxMerges = 2;
+    let mergeCount = maxMerges;
 
     // Initialize Game
     function initGame() {
@@ -35,10 +40,12 @@ document.addEventListener('DOMContentLoaded', () => {
         won = false;
         keepPlaying = false;
 
-        // Reset Undo
+        // Reset Undo and Merge
         undoCount = maxUndos;
+        mergeCount = maxMerges;
         gameHistory = [];
         updateUndoButton();
+        updateMergeButton();
 
         clearTiles();
         updateScore();
@@ -58,10 +65,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 grid: gridCopy,
                 score: score,
                 won: won,
-                keepPlaying: keepPlaying
+                keepPlaying: keepPlaying,
+                mergeCount: mergeCount // Save merge count too so it reverts
             });
-            // We don't limit history stack size here, but we could if we wanted unlimited undos. 
-            // Since we have a count limit, we just need to ensure we pop correctly.
         }
     }
 
@@ -72,15 +78,61 @@ document.addEventListener('DOMContentLoaded', () => {
             score = previousState.score;
             won = previousState.won;
             keepPlaying = previousState.keepPlaying;
+            mergeCount = previousState.mergeCount !== undefined ? previousState.mergeCount : maxMerges;
 
             undoCount--;
             updateUndoButton();
+            updateMergeButton();
             updateView();
             updateScore();
-            hideMessage(); // Hide game over if we undid the losing move
+            hideMessage();
         }
-        // If count becomes 0 or history empty, update button
         updateUndoButton();
+    }
+
+    function magicMerge() {
+        if (mergeCount <= 0) return;
+
+        let merged = false;
+        // Check Horizontal Merges first
+        for (let r = 0; r < gridSize; r++) {
+            for (let c = 0; c < gridSize - 1; c++) {
+                if (grid[r][c] !== 0 && grid[r][c] === grid[r][c + 1]) {
+                    // Merge!
+                    if (!merged) {
+                        saveState(); // Save only if at least one merge happens
+                        merged = true;
+                    }
+                    grid[r][c] *= 2;
+                    grid[r][c + 1] = 0;
+                    c++; // Skip next since we just merged into it (avoid 2-2-2 -> 4-2)
+                }
+            }
+        }
+
+        // Check Vertical Merges (independent scan)
+        for (let c = 0; c < gridSize; c++) {
+            for (let r = 0; r < gridSize - 1; r++) {
+                if (grid[r][c] !== 0 && grid[r][c] === grid[r + 1][c]) {
+                    if (!merged) {
+                        saveState(); // Ensure we save state if only vertical merge happens
+                        merged = true;
+                    }
+                    grid[r][c] *= 2;
+                    grid[r + 1][c] = 0;
+                    r++;
+                }
+            }
+        }
+
+        if (merged) {
+            mergeCount--;
+            updateMergeButton();
+            updateView();
+            updateScore();
+
+            // Note: NO new tile is added, just pure relief.
+        }
     }
 
     function updateUndoButton() {
@@ -89,6 +141,13 @@ document.addEventListener('DOMContentLoaded', () => {
             undoButton.disabled = true;
         } else {
             undoButton.disabled = false;
+        }
+    }
+
+    function updateMergeButton() {
+        if (mergeButton) {
+            mergeButton.textContent = `Merge (${mergeCount})`;
+            mergeButton.disabled = (mergeCount === 0);
         }
     }
 
@@ -337,6 +396,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     restartButton.addEventListener('click', initGame);
     undoButton.addEventListener('click', undo);
+    if (mergeButton) mergeButton.addEventListener('click', magicMerge);
     retryButton.addEventListener('click', initGame);
     keepPlayingButton.addEventListener('click', () => {
         keepPlaying = true;
